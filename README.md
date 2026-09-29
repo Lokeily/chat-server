@@ -8,6 +8,18 @@
 > - **个人 / 非商业使用**：适用 [AGPL-3.0](LICENSE)，自由使用、修改、分发；分发或对外提供服务时须公开修改后的源码。
 > - **商业使用**：须**事先联系作者并取得书面授权**，否则不适用 AGPL 授权。详见 [COMMERCIAL.md](COMMERCIAL.md)。
 
+## 界面预览
+
+微信 PC 式多栏布局：左侧导航条 + 会话列表 + 聊天区 + 成员栏，Apple Liquid Glass 玻璃质感。
+
+| 聊天主界面（浅色） | 深色主题 |
+|:---:|:---:|
+| <img src="docs/screenshots/chat-light.png" width="440" alt="聊天主界面（浅色）"> | <img src="docs/screenshots/chat-dark.png" width="440" alt="深色主题"> |
+
+| 移动端 / 窄屏 | 管理后台 |
+|:---:|:---:|
+| <img src="docs/screenshots/chat-narrow.png" width="300" alt="移动端窄屏"> | <img src="docs/screenshots/admin-panel.png" width="440" alt="管理后台"> |
+
 ## 功能特性
 
 | 功能 | 说明 |
