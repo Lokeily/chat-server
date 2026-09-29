@@ -12,7 +12,17 @@
     "node": ">=22.5"
   },
   "license": "AGPL-3.0-or-later",
-  "author": "Lokeily",
+  "author": "Lokeily <122818713+Lokeily@users.noreply.github.com>",
+  "licenses": [
+    {
+      "type": "AGPL-3.0-or-later",
+      "url": "https://github.com/Lokeily/chat-server/blob/main/LICENSE"
+    },
+    {
+      "type": "Commercial（须事先取得作者书面授权）",
+      "url": "https://github.com/Lokeily/chat-server/blob/main/COMMERCIAL.md"
+    }
+  ],
   "homepage": "https://github.com/Lokeily/chat-server",
   "repository": {
     "type": "git",
