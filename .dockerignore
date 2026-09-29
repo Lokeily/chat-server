@@ -1,0 +1,13 @@
+node_modules
+data
+certs
+.env
+.env.*
+*.log
+*.pid
+*.tgz
+.DS_Store
+.git
+.gitignore
+README.md
+docker-compose.yml

@@ -1,0 +1,2073 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>管理后台 · 聊天室</title>
+<script>
+  /* 主题必须在首次绘制前定下来，否则会先闪一下浅色再变暗（FOUC） */
+  (function(){
+    try {
+      var p = localStorage.getItem('chat.theme') || 'auto';
+      var dark = (p === 'dark') || (p === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  })();
+</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234f46e5'/%3E%3Cstop offset='1' stop-color='%238b5cf6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M25 15.5a7 7 0 0 1-7.5 7 7.6 7.6 0 0 1-3.2-.7L9 23.5l1.6-4.4a7 7 0 0 1-.6-3.6 7 7 0 0 1 7.5-7h.4a7 7 0 0 1 7.1 7z' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  /* ============ 设计 token（与聊天页保持同一套变量名） ============ */
+  :root{
+    color-scheme:light;
+    /* Liquid Glass：单色系克制背景 + 半透明磨砂表面（与聊天页同一套） */
+    --bg:#f1f2f6; --bg-2:#eceef4;
+    --bg-mesh:
+      radial-gradient(115% 78% at 50% -8%, rgba(255,255,255,.92), rgba(255,255,255,0) 62%),
+      linear-gradient(180deg,#f7f8fb 0%,#f0f2f6 52%,#eaecf3 100%);
+    --glass-strong:rgba(255,255,255,.82);
+    --glass-brd:rgba(255,255,255,.65);
+    --glass-hl:rgba(255,255,255,.92);
+    --panel:rgba(255,255,255,.68); --panel-solid:rgba(249,250,252,.8); --panel-2:rgba(252,253,255,.84); --soft:rgba(240,242,247,.74);
+    --hairline:rgba(16,24,40,.075); --hairline-2:rgba(16,24,40,.05);
+    --border:rgba(16,24,40,.10); --border-2:rgba(16,24,40,.055);
+    --text:#16181f; --text-2:#2b3140; --muted:#6b7280; --faint:#9aa1ad;
+    --brand:#07c160; --brand-2:#06ad56; --brand-soft:rgba(7,193,96,.12);
+    --ring:rgba(7,193,96,.18);
+    --brand-border:rgba(7,193,96,.28); --brand-shadow:rgba(7,193,96,.3);
+    --ok:#06ad56;      --ok-soft:rgba(6,173,86,.12);      --ok-border:rgba(6,173,86,.28);
+    --warn:#b45309;    --warn-soft:rgba(180,83,9,.12);    --warn-border:rgba(180,83,9,.28);
+    --danger:#e64340;  --danger-soft:rgba(230,67,64,.12);  --danger-border:rgba(230,67,64,.28);
+    --info:#3478f6;    --info-soft:rgba(52,120,246,.12);  --info-border:rgba(52,120,246,.28);
+    --purple:#7c3aed;  --purple-soft:rgba(124,58,237,.12);
+    --toast-bg:rgba(24,28,42,.92); --toast-text:#ffffff;
+    --footer-fade:linear-gradient(180deg,rgba(241,242,246,0),rgba(241,242,246,.92) 34%);
+    --scroll:rgba(15,22,41,.16); --scroll-hover:rgba(15,22,41,.3);
+    --shadow-sm:0 1px 2px rgba(15,22,41,.05);
+    --shadow-md:0 1px 2px rgba(15,22,41,.04), 0 10px 28px rgba(15,22,41,.09);
+    --shadow-lg:0 24px 60px rgba(15,22,41,.2);
+    --radius:14px; --radius-sm:11px; --radius-lg:22px;
+  }
+  [data-theme="dark"]{
+    color-scheme:dark;
+    /* Liquid Glass 暗色：同样单色系，玻璃更暗、边缘亮线更弱 */
+    --bg:#0e1016; --bg-2:#0a0c12;
+    --bg-mesh:
+      radial-gradient(115% 74% at 50% -8%, rgba(70,80,104,.44), rgba(0,0,0,0) 62%),
+      linear-gradient(180deg,#171a22 0%,#111319 55%,#0b0d13 100%);
+    --glass-strong:rgba(32,36,46,.8);
+    --glass-brd:rgba(255,255,255,.09);
+    --glass-hl:rgba(255,255,255,.08);
+    --panel:rgba(28,31,40,.62); --panel-solid:rgba(24,27,35,.72); --panel-2:rgba(36,40,51,.76); --soft:rgba(46,51,64,.6);
+    --hairline:rgba(255,255,255,.07); --hairline-2:rgba(255,255,255,.045);
+    --border:rgba(255,255,255,.09); --border-2:rgba(255,255,255,.05);
+    --text:#eceef4; --text-2:#c3c9d6; --muted:#8d94a8; --faint:#5e6577;
+    --brand:#07c160; --brand-2:#07c160; --brand-soft:rgba(7,193,96,.16);
+    --ring:rgba(7,193,96,.24);
+    --brand-border:rgba(7,193,96,.32);
+    --ok:#30d158;      --ok-soft:rgba(48,209,88,.16);      --ok-border:rgba(48,209,88,.32);
+    --warn:#fbbf24;    --warn-soft:rgba(251,191,36,.14);   --warn-border:rgba(251,191,36,.32);
+    --danger:#ff5d5b;  --danger-soft:rgba(255,93,91,.16);  --danger-border:rgba(255,93,91,.32);
+    --info:#5a9cf8;    --info-soft:rgba(90,156,248,.16);   --info-border:rgba(90,156,248,.32);
+    --purple:#c4b5fd;  --purple-soft:rgba(196,181,253,.16);
+    --toast-bg:rgba(236,238,244,.92); --toast-text:#0b0d14;
+    --footer-fade:linear-gradient(180deg,rgba(14,16,22,0),rgba(14,16,22,.92) 34%);
+    --scroll:rgba(255,255,255,.16); --scroll-hover:rgba(255,255,255,.3);
+    --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+    --shadow-md:0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.5);
+    --shadow-lg:0 24px 60px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);font-size:14.5px;line-height:1.55;min-height:100dvh;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+    /* Liquid Glass 背景：克制单色系，只做明暗层次 */
+    background-image:var(--bg-mesh);
+    background-attachment:fixed;
+  }
+  button{font-family:inherit;font-size:inherit;cursor:pointer;border:0;background:none;color:inherit}
+  input,select{font-family:inherit;font-size:inherit;color:inherit}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:999px;border:3px solid transparent;background-clip:content-box}
+  ::-webkit-scrollbar-thumb:hover{background:var(--scroll-hover);background-clip:content-box;border:3px solid transparent}
+  ::-webkit-scrollbar-track{background:transparent}
+  html.theme-anim,html.theme-anim *{transition:background-color .25s ease,color .25s ease,border-color .25s ease !important}
+
+  header{
+    position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:14px;
+    padding:12px clamp(14px,3vw,32px);
+    background:var(--panel);
+    border-bottom:1px solid var(--hairline);
+    /* Liquid Glass：顶部栏磨砂 */
+    -webkit-backdrop-filter:blur(30px) saturate(180%);
+    backdrop-filter:blur(30px) saturate(180%);
+  }
+  .logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(180deg,var(--brand),var(--brand-2));display:grid;place-items:center;color:#fff;box-shadow:0 4px 12px var(--brand-shadow), inset 0 1px 0 rgba(255,255,255,.35)}
+  .logo svg{width:20px;height:20px}
+  .brand-title{font-weight:650;font-size:16px;letter-spacing:-.01em}
+  .brand-sub{font-size:12px;color:var(--muted)}
+  .spacer{flex:1 1 auto}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:38px;padding:0 15px;border-radius:11px;font-weight:560;font-size:14px;transition:transform .16s,box-shadow .18s,background .18s;white-space:nowrap}
+  .btn:active{transform:translateY(1px) scale(.99)}
+  .btn-primary{color:#fff;background:var(--brand);box-shadow:0 4px 12px rgba(7,193,96,.26)}
+  .btn-primary:hover{box-shadow:0 6px 16px rgba(7,193,96,.34)}
+  .btn-ghost{background:var(--panel);border:1px solid var(--border);box-shadow:var(--shadow-sm)}
+  .btn-ghost:hover{background:var(--soft)}
+  .btn-danger{color:#fff;background:#e5484d;box-shadow:0 4px 12px rgba(229,72,77,.24)}
+  .btn-danger:hover{box-shadow:0 6px 16px rgba(229,72,77,.32)}
+  .chip-row .chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 6px 0 11px;border-radius:9px;background:var(--soft);border:1px solid var(--border);font-size:12.5px}
+  .chip-row .chip button{width:20px;height:20px;border:0;border-radius:6px;background:transparent;color:var(--muted);font-size:14px;line-height:1;cursor:pointer;transition:background .15s,color .15s}
+  .chip-row .chip button:hover{background:var(--danger-soft,#ffe1e1);color:#e5484d}
+  .btn-sm{height:32px;padding:0 12px;border-radius:9px;font-size:13px}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+
+  main{max-width:1180px;margin:0 auto;padding:22px clamp(14px,3vw,32px) 60px}
+  .page-t{font-size:21px;font-weight:680;letter-spacing:-.02em;margin:2px 0 4px}
+  .page-d{color:var(--muted);font-size:13.5px;margin-bottom:20px}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:13px;margin-bottom:22px}
+  .stat{
+    background:var(--panel-solid, var(--panel));
+    border:1px solid var(--hairline);
+    border-radius:16px;
+    padding:15px 17px;
+    box-shadow:var(--shadow-sm), inset 0 1px 0 var(--glass-hl, rgba(255,255,255,.9));
+    /* 不做 backdrop-filter：卡片背后是固定的页面背景，模糊无收益只有开销 */
+  }
+  .stat .k{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .stat .v{font-size:25px;font-weight:680;letter-spacing:-.02em;margin-top:5px;font-variant-numeric:tabular-nums}
+  .stat .v small{font-size:13px;font-weight:500;color:var(--muted);margin-left:3px}
+
+  .card{
+    background:var(--panel-solid, var(--panel));
+    border:1px solid var(--hairline);
+    border-radius:18px;
+    box-shadow:var(--glass-shadow, var(--shadow-md)), inset 0 1px 0 var(--glass-hl, rgba(255,255,255,.9));
+    overflow:hidden;
+    position:relative;
+    /* 不做 backdrop-filter：与 .stat 同理，避免列表滚动时反复重采样 */
+  }
+  .card::before{
+    content:'';position:absolute;inset:0 0 auto 0;height:1px;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent);
+    opacity:.9;pointer-events:none;
+  }
+  [data-theme="dark"] .card::before{
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent);
+  }
+  .card-head{display:flex;align-items:center;gap:12px;padding:15px 18px;border-bottom:1px solid var(--border)}
+  .card-head h2{margin:0;font-size:15.5px;font-weight:640}
+  .card-head .cnt{font-size:12.5px;color:var(--muted);background:var(--soft);border:1px solid var(--border);padding:1px 8px;border-radius:999px}
+
+  .tbl-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:14px;min-width:820px}
+  th{
+    text-align:left;font-size:12.5px;font-weight:600;color:var(--muted);
+    padding:11px 16px;background:var(--soft);border-bottom:1px solid var(--border);white-space:nowrap;
+  }
+  td{padding:13px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
+  tr:last-child td{border-bottom:0}
+  tr:hover td{background:var(--panel-2)}
+  .u-cell{display:flex;align-items:center;gap:11px;min-width:0}
+  .avatar{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;color:#fff;font-size:13.5px;font-weight:640;flex:0 0 auto}
+  .u-name{font-weight:580;white-space:nowrap}
+  .u-sub{font-size:12px;color:var(--muted);white-space:nowrap}
+  .tag{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2.5px 9px;border-radius:999px;white-space:nowrap}
+  .tag-admin{color:var(--purple);background:var(--purple-soft)}
+  .tag-member{color:var(--text-2);background:var(--soft)}
+  .tag-on{color:var(--ok);background:var(--ok-soft)}
+  .tag-off{color:var(--danger);background:var(--danger-soft)}
+  .num{font-variant-numeric:tabular-nums;color:var(--text-2)}
+  .acts{display:flex;gap:7px;flex-wrap:nowrap}
+  .act{height:30px;padding:0 10px;border-radius:8px;font-size:12.5px;font-weight:560;border:1px solid var(--border);background:var(--panel);color:var(--text-2);transition:all .16s}
+  .act:hover{background:var(--soft);border-color:var(--border)}
+  .act.warn{color:var(--warn);border-color:var(--warn-border);background:var(--warn-soft)}
+  .act.warn:hover{background:var(--warn-soft)}
+  .act.danger{color:var(--danger);border-color:var(--danger-border);background:var(--danger-soft)}
+  .act.danger:hover{background:var(--danger-soft)}
+  .act.ok{color:var(--ok);border-color:var(--ok-border);background:var(--ok-soft)}
+  .act.ok:hover{background:var(--ok-soft)}
+
+  .empty{padding:52px 20px;text-align:center;color:var(--muted)}
+
+  /* 弹窗 */
+  .overlay{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:20px;background:rgba(23,26,37,.55);opacity:0;visibility:hidden;transition:opacity .22s,visibility .22s}
+  .overlay.show{opacity:1;visibility:visible}
+  .modal{
+    width:100%;max-width:420px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:24px;
+    box-shadow:var(--shadow-lg);
+    padding:26px 24px 22px;
+    transform:translateY(14px) scale(.97);
+    transition:transform .26s cubic-bezier(.22,1,.36,1);
+    -webkit-backdrop-filter:blur(26px) saturate(1.8);
+    backdrop-filter:blur(26px) saturate(1.8);
+  }
+  .overlay.show .modal{transform:none}
+  .modal h3{margin:0 0 5px;font-size:18px;letter-spacing:-.01em}
+  .modal p.sub{margin:0 0 18px;font-size:13px;color:var(--muted)}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:12.5px;font-weight:600;color:var(--text-2);margin-bottom:6px}
+  .field input,.field select{width:100%;height:42px;border-radius:11px;border:1px solid var(--border);background:var(--soft);padding:0 13px;outline:0;transition:border-color .18s,box-shadow .18s,background .18s}
+  .field input:focus,.field select:focus{border-color:var(--brand-border);background:var(--panel);box-shadow:0 0 0 4px var(--ring)}
+  .err{color:var(--danger);font-size:13px;min-height:19px;margin:2px 0 6px}
+  .modal-foot{display:flex;gap:9px;justify-content:flex-end;margin-top:6px}
+  .modal-foot .btn{min-width:88px}
+  .danger-ico{width:52px;height:52px;border-radius:16px;background:var(--danger-soft);color:var(--danger);display:grid;place-items:center;margin-bottom:14px}
+  .danger-ico svg{width:24px;height:24px}
+
+  .toast{position:fixed;left:50%;bottom:32px;transform:translate(-50%,16px);background:var(--toast-bg);color:var(--toast-text);font-size:13.5px;padding:10px 18px;border-radius:12px;box-shadow:var(--shadow-lg);opacity:0;visibility:hidden;transition:all .22s;z-index:80;max-width:88vw;text-align:center}
+  .toast.show{opacity:1;visibility:visible;transform:translate(-50%,0)}
+  .hidden{display:none!important}
+  .skeleton{padding:44px;text-align:center;color:var(--muted)}
+
+  /* ---------- 访问安全 ---------- */
+  .geo-panel{padding:16px 18px 18px}
+  .geo-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .geo-badge{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px;border-radius:9px;font-size:13px;font-weight:640;flex:0 0 auto}
+  .geo-badge.on{background:var(--ok-soft);color:var(--ok);border:1px solid var(--ok-border)}
+  .geo-badge.log{background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn-border)}
+  .geo-badge.off{background:var(--soft);color:var(--text-2);border:1px solid var(--border)}
+  .geo-badge i{width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block}
+  .geo-desc{font-size:13px;color:var(--muted);flex:1 1 240px;min-width:0;line-height:1.6}
+  .geo-desc b{color:var(--text);font-weight:620}
+  .geo-modes{display:flex;gap:5px;background:var(--soft);border:1px solid var(--border);padding:3px;border-radius:10px}
+  .geo-modes button{height:28px;padding:0 11px;border-radius:8px;font-size:12.5px;font-weight:600;color:var(--muted);transition:background .16s,color .16s}
+  .geo-modes button.on{background:var(--panel);color:var(--brand);box-shadow:var(--shadow-sm)}
+  /* 三级地域规则卡片 */
+  .geo-rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:14px}
+  .geo-rule{background:var(--panel-2);border:1px solid var(--border);border-radius:14px;padding:13px 14px;display:flex;flex-direction:column;gap:10px}
+  .rule-head{display:flex;align-items:center;gap:10px}
+  .rule-toggle{position:relative;display:inline-flex;flex:0 0 auto;cursor:pointer}
+  .rule-toggle input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+  .rule-toggle .tk{width:44px;height:26px;border-radius:999px;background:var(--border);transition:background .2s,box-shadow .2s;position:relative}
+  .rule-toggle .tk::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25);transition:transform .2s cubic-bezier(.22,1,.36,1)}
+  .rule-toggle input:checked + .tk{background:var(--brand);box-shadow:0 2px 8px rgba(7,193,96,.35)}
+  .rule-toggle input:checked + .tk::after{transform:translateX(18px)}
+  .rule-title{display:flex;flex-direction:column;gap:1px;min-width:0}
+  .rule-title b{font-size:15px;font-weight:680;letter-spacing:-.01em}
+  .rule-desc{font-size:11.5px;color:var(--muted);line-height:1.4}
+  .rule-body{display:flex;flex-direction:column;gap:7px}
+  .rule-body select{width:100%;border:1px solid var(--border);background:var(--soft);border-radius:10px;padding:4px;outline:0;font-size:13px;color:var(--text)}
+  .rule-body select:focus{border-color:var(--brand-border);box-shadow:0 0 0 4px var(--ring)}
+  .rule-body select option{padding:5px 8px;border-radius:6px}
+  .rule-tips{font-size:11.5px;color:var(--muted);line-height:1.5;min-height:17px}
+  .geo-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:11px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+  .geo-form label{display:block;font-size:11.5px;font-weight:600;color:var(--text-2);margin-bottom:5px}
+  .geo-form input{width:100%;height:38px;border-radius:10px;border:1px solid var(--border);background:var(--soft);padding:0 11px;outline:0;font-size:13px;transition:border-color .18s,box-shadow .18s,background .18s}
+  .geo-form input:focus{border-color:var(--brand-border);background:var(--panel);box-shadow:0 0 0 4px var(--ring)}
+  .geo-form .save{display:flex;align-items:flex-end}
+  .geo-form .save .btn{width:100%;height:38px}
+  .geo-lookup{display:flex;gap:8px;align-items:center;margin-top:13px;flex-wrap:wrap}
+  .geo-lookup input{flex:1 1 230px;min-width:0;height:38px;border-radius:10px;border:1px solid var(--border);background:var(--soft);padding:0 11px;outline:0;font-size:13px}
+  .geo-lookup input:focus{border-color:var(--brand-border);background:var(--panel);box-shadow:0 0 0 4px var(--ring)}
+  .geo-lookup .res{font-size:12.5px;color:var(--muted)}
+  .geo-lookup .res b{color:var(--text);font-weight:620}
+  .geo-note{margin-top:12px;font-size:12px;color:var(--warn);background:var(--warn-soft);border:1px solid var(--warn-border);border-radius:10px;padding:9px 12px;line-height:1.7}
+  .geo-note code{background:var(--panel);border:1px solid var(--warn-border);border-radius:5px;padding:1px 5px;font-size:11.5px}
+  .geo-tabs{display:flex;align-items:center;gap:6px;padding:13px 18px 0;flex-wrap:wrap}
+  .geo-tabs button{height:28px;padding:0 11px;border-radius:8px;font-size:12.5px;font-weight:600;color:var(--muted);background:var(--soft);border:1px solid var(--border)}
+  .geo-tabs button.on{background:var(--brand-soft);color:var(--brand);border-color:var(--brand-border)}
+  .geo-tabs .stat{font-size:12px;color:var(--muted)}
+  .ip{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+  .geo-tag{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:7px;font-size:11.5px;font-weight:620;white-space:nowrap}
+  .geo-tag.ok{background:var(--ok-soft);color:var(--ok)}
+  .geo-tag.no{background:var(--danger-soft);color:var(--danger)}
+  .geo-sub{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .geo-sub.risk{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .risk-chip{display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:6px;font-size:10.5px;font-weight:700;background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger-border)}
+  .device-cell{font-size:12px;color:var(--text-2);white-space:nowrap}
+
+  /* ---------- 登录安全（新增） ---------- */
+  .sec-alert{display:flex;align-items:center;gap:9px;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.55;flex-wrap:wrap}
+  .sec-alert.pending{background:var(--warn-soft);border:1px solid var(--warn-border);color:var(--warn)}
+  .sec-alert.banned{background:var(--danger-soft);border:1px solid var(--danger-border);color:var(--danger)}
+  .sec-alert b{font-weight:640}
+  .sec-alert .btn{margin-left:auto;flex:0 0 auto}
+  .bell-wrap{position:relative}
+  .bell-badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;border-radius:999px;background:#dc2626;color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;padding:0 5px;z-index:5;box-shadow:0 2px 6px rgba(220,38,38,.4)}
+  .sec-tabs{display:flex;gap:6px;align-items:center;padding:13px 18px 0;flex-wrap:wrap}
+  .sec-tabs button{height:28px;padding:0 11px;border-radius:8px;font-size:12.5px;font-weight:600;color:var(--muted);background:var(--soft);border:1px solid var(--border)}
+  .sec-tabs button.on{background:var(--brand-soft);color:var(--brand);border-color:var(--brand-border)}
+  .sec-tabs .stat{font-size:12px;color:var(--muted)}
+  .status-chip{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:7px;font-size:11.5px;font-weight:620;white-space:nowrap}
+  .status-chip.success{background:var(--ok-soft);color:var(--ok)}
+  .status-chip.fail{background:var(--danger-soft);color:var(--danger)}
+  .status-chip.banned{background:var(--purple-soft);color:var(--purple)}
+  .status-chip.locked{background:var(--danger-soft);color:var(--danger)}
+  .status-chip.pending{background:var(--warn-soft);color:var(--warn)}
+  .status-chip.denied{background:var(--soft);color:var(--text-2)}
+  .status-chip.geo_blocked{background:var(--danger-soft);color:var(--danger)}
+  .reason-cell{font-size:12.5px;color:var(--text-2);line-height:1.5}
+  .approval-row{display:flex;align-items:center;gap:14px;padding:13px 18px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+  .approval-row:last-child{border-bottom:0}
+  .approval-row:hover{background:var(--panel-2)}
+  .ap-user{display:flex;flex-direction:column;min-width:140px}
+  .ap-ip{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+  .ap-meta{font-size:12px;color:var(--muted);margin-top:2px}
+  .ap-actions{display:flex;gap:8px;margin-left:auto}
+  .ap-note{font-size:12px;color:var(--warn);background:var(--warn-soft);border:1px solid var(--warn-border);border-radius:8px;padding:6px 10px}
+  .expired-tag{font-size:11px;color:var(--danger);font-weight:600}
+
+  /* ---------- 分页 ---------- */
+  .pager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    padding:10px 14px;border-top:1px solid var(--border);background:var(--panel-2);border-radius:0 0 14px 14px}
+  .pager-info{font-size:12.5px;color:var(--muted)}
+  .pager-ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .pager-ctrl label{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--muted)}
+  .pager-size{height:28px;padding:0 6px;border:1px solid var(--border);border-radius:8px;background:var(--panel);font-size:12.5px;color:var(--text);cursor:pointer}
+  .pager-num{font-size:12.5px;color:var(--text-2);font-weight:600;min-width:56px;text-align:center}
+  .pager button:disabled{opacity:.4;cursor:not-allowed}
+
+  /* ---------- 角色切换下拉 ---------- */
+  .role-sel{height:28px;padding:0 8px;border:1px solid var(--border);border-radius:8px;background:var(--panel);
+    font-size:12.5px;color:var(--text);cursor:pointer;min-width:88px;transition:border-color .15s}
+  .role-sel:hover{border-color:var(--border)}
+  .role-sel:focus{outline:none;border-color:var(--brand-border);box-shadow:0 0 0 2px rgba(37,99,235,.15)}
+  .role-sel:disabled{opacity:.55;cursor:not-allowed}
+  .role-sel.loading{opacity:.55;cursor:wait}
+
+  /* ---------- 传输通道状态 ---------- */
+  .tls-chip{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:9px;
+    font-size:12px;font-weight:620;white-space:nowrap;border:1px solid transparent}
+  .tls-chip .lock{width:13px;height:13px;flex:0 0 auto}
+  .tls-chip.secure{background:var(--ok-soft);color:var(--ok);border-color:var(--ok-border)}
+  .tls-chip.plain{background:var(--warn-soft);color:var(--warn);border-color:var(--warn-border)}
+  .tls-chip .hint{font-weight:500;color:inherit;opacity:.85}
+  .tls-banner{display:flex;align-items:center;gap:10px;padding:11px 15px;border-radius:13px;font-size:13px;line-height:1.6;margin:14px 0 0}
+  .tls-banner.secure{background:var(--ok-soft);border:1px solid var(--ok-border);color:var(--ok)}
+  .tls-banner.plain{background:var(--warn-soft);border:1px solid var(--warn-border);color:var(--warn)}
+  .tls-banner b{font-weight:640}
+  .tls-banner .go-https{margin-left:auto;flex:0 0 auto}
+
+  /* ---------- 主题切换（分段控件） ---------- */
+  .theme-seg{
+    display:flex;gap:2px;padding:3px;border-radius:11px;
+    background:var(--soft);border:1px solid var(--border-2);flex:0 0 auto;
+  }
+  .theme-seg button{
+    height:30px;padding:0 10px;border-radius:8px;font-size:12.5px;font-weight:560;
+    color:var(--muted);display:flex;align-items:center;gap:5px;
+    transition:background .16s ease,color .16s ease;
+  }
+  .theme-seg button:hover{color:var(--text)}
+  .theme-seg button.on{background:var(--panel);color:var(--brand);box-shadow:var(--shadow-sm);font-weight:620}
+  .theme-seg button svg{width:13px;height:13px}
+  @media (max-width:720px){ .theme-seg button span{display:none} .theme-seg button{padding:0 9px} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  </div>
+  <div>
+    <div class="brand-title">管理后台</div>
+    <div class="brand-sub" id="whoami">加载中…</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="theme-seg" id="themeSeg" title="外观：浅色 / 深色 / 自动">
+    <button type="button" data-theme-opt="light" title="浅色"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4"/></svg><span>浅色</span></button>
+    <button type="button" data-theme-opt="dark" title="深色"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><span>深色</span></button>
+    <button type="button" data-theme-opt="auto" title="自动（跟随系统）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="13" rx="2.5"/><path d="M8 20.5h8"/></svg><span>自动</span></button>
+  </div>
+  <span class="tls-chip plain" id="tlsChip" title="当前访问通道状态">
+    <svg class="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+    <span id="tlsChipText">检测中…</span>
+  </span>
+  <div class="bell-wrap" id="bellWrap" style="position:relative">
+    <button class="btn btn-ghost btn-icon" id="bellBtn" title="登录安全通知" style="width:38px;height:38px;border-radius:11px;display:grid;place-items:center">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:19px;height:19px">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+    </button>
+    <span class="bell-badge hidden" id="bellBadge">0</span>
+  </div>
+  <button class="btn btn-ghost" id="backBtn">返回聊天室</button>
+</header>
+
+<!-- 登录安全通知条（实时） -->
+<div id="secAlert" class="hidden" style="max-width:1180px;margin:14px auto 0;padding:0 clamp(14px,3vw,32px)"></div>
+
+<main>
+  <div id="denied" class="hidden">
+    <div class="card"><div class="empty">
+      <div style="font-size:16px;font-weight:640;color:var(--text);margin-bottom:6px">没有权限</div>
+      <div>这个页面只对管理员开放。</div>
+      <div style="margin-top:18px"><button class="btn btn-primary" id="goHome">返回聊天室</button></div>
+    </div></div>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="page-t">账号管理</div>
+    <div class="page-d">在这里新增账号、重置密码、停用或删除用户。被停用的账号无法登录，历史消息仍会保留。</div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>账号列表</h2>
+        <span class="cnt" id="userCount">0</span>
+        <div class="spacer"></div>
+        <button class="btn btn-primary btn-sm" id="newUserBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          新增账号
+        </button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>用户</th><th>角色</th><th>状态</th><th>消息</th><th>文件</th><th>最后登录</th><th>最近 IP · 归属地</th><th>创建时间</th><th style="text-align:right">操作</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="9" class="skeleton">加载中…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 访问安全 -->
+    <div class="card">
+      <div class="card-head">
+        <h2>访问安全</h2>
+        <div class="spacer"></div>
+        <button class="btn btn-ghost btn-sm" id="geoRefresh">刷新</button>
+      </div>
+      <div class="tls-banner plain" id="tlsBanner" style="margin:14px 18px 0">
+        <svg class="lock" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <span id="tlsBannerText">正在检测传输通道…</span>
+        <button class="btn btn-ghost btn-sm go-https" id="tlsGoHttps" style="display:none">改用加密通道</button>
+      </div>
+      <div class="geo-panel">
+        <div class="geo-head">
+          <span class="geo-badge off" id="geoBadge"><i></i><span id="geoBadgeText">读取中…</span></span>
+          <div class="geo-desc" id="geoDesc">正在读取拦截规则…</div>
+          <div class="geo-modes" id="geoModes">
+            <button data-mode="on">拦截</button>
+            <button data-mode="log">只记录</button>
+            <button data-mode="off">关闭</button>
+          </div>
+        </div>
+
+        <div class="geo-rules">
+          <!-- 省开关 -->
+          <div class="geo-rule">
+            <div class="rule-head">
+              <label class="rule-toggle">
+                <input type="checkbox" id="geoProvOn">
+                <span class="tk"></span>
+              </label>
+              <div class="rule-title">
+                <b>省</b>
+                <span class="rule-desc">按省份放行 · 命中任一放行省即可</span>
+              </div>
+            </div>
+            <div class="rule-body" id="geoProvBox">
+              <select id="geoProv" multiple size="6" autocomplete="off"></select>
+              <div class="rule-tips" id="geoProvTips"></div>
+            </div>
+          </div>
+          <!-- 市开关 -->
+          <div class="geo-rule">
+            <div class="rule-head">
+              <label class="rule-toggle">
+                <input type="checkbox" id="geoCityOn">
+                <span class="tk"></span>
+              </label>
+              <div class="rule-title">
+                <b>市</b>
+                <span class="rule-desc">按城市放行 · 命中任一放行市即可</span>
+              </div>
+            </div>
+            <div class="rule-body" id="geoCityBox">
+              <select id="geoCity" multiple size="6" autocomplete="off"></select>
+              <div class="rule-tips" id="geoCityTips"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="geo-form">
+          <div>
+            <label for="geoIps">IP 白名单（逗号分隔）</label>
+            <input id="geoIps" placeholder="119.62.21.122" autocomplete="off">
+          </div>
+          <div>
+            <label>归属地查不到时</label>
+            <div class="geo-modes" id="geoUnknown">
+              <button data-unknown="0">拦截（推荐）</button>
+              <button data-unknown="1">放行</button>
+            </div>
+          </div>
+          <div class="save">
+            <button class="btn btn-primary" id="geoSave">保存规则</button>
+          </div>
+        </div>
+
+        <div class="geo-lookup">
+          <input id="geoLkIp" placeholder="查一个 IP 的归属地，判断它会不会被拦" autocomplete="off">
+          <button class="btn btn-ghost btn-sm" id="geoLkBtn">查询</button>
+          <span class="res" id="geoLkRes"></span>
+        </div>
+
+        <div class="geo-note" id="geoKillNote"></div>
+      </div>
+
+      <div class="geo-tabs">
+        <button data-only="" class="on">全部</button>
+        <button data-only="blocked">仅拦截</button>
+        <button data-only="login">仅登录</button>
+        <span class="stat" id="geoLogStat"></span>
+        <div class="spacer"></div>
+        <button class="btn btn-ghost btn-sm" id="geoLogClear">清空日志</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>时间</th><th>IP</th><th>归属地</th><th>运营商</th><th>结果</th><th>说明</th>
+            </tr>
+          </thead>
+          <tbody id="logBody">
+            <tr><td colspan="6" class="skeleton">加载中…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- 访问日志分页 -->
+      <div class="pager" id="logPager" style="display:none">
+        <span class="pager-info" id="logPageInfo"></span>
+        <div class="pager-ctrl">
+          <label>每页
+            <select id="logSize" class="pager-size">
+              <option value="10">10</option>
+              <option value="20" selected>20</option>
+              <option value="30">30</option>
+            </select> 条
+          </label>
+          <button class="btn btn-ghost btn-sm" id="logPrev" disabled>上一页</button>
+          <span class="pager-num" id="logPageNum"></span>
+          <button class="btn btn-ghost btn-sm" id="logNext" disabled>下一页</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 登录安全（登录动态 / 待放行审批 / 封禁管理） -->
+    <div class="card" id="secCard" style="margin-top:18px">
+      <div class="card-head">
+        <h2>登录安全</h2>
+        <span class="cnt" id="secCount">-</span>
+        <div class="spacer"></div>
+        <button class="btn btn-ghost btn-sm" id="secRefresh">刷新</button>
+      </div>
+
+      <div class="sec-tabs">
+        <span class="stat" id="secStat"></span>
+        <div class="spacer"></div>
+        <button class="btn btn-ghost btn-sm" id="secClear">清空登录日志</button>
+      </div>
+
+      <!-- 登录动态表 -->
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>时间</th><th>账号</th><th>设备</th><th>IP · 归属地</th><th>结果</th><th>说明</th>
+            </tr>
+          </thead>
+          <tbody id="loginLogBody">
+            <tr><td colspan="6" class="skeleton">加载中…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- 登录动态分页 -->
+      <div class="pager" id="loginLogPager" style="display:none">
+        <span class="pager-info" id="loginLogPageInfo"></span>
+        <div class="pager-ctrl">
+          <label>每页
+            <select id="loginLogSize" class="pager-size">
+              <option value="10">10</option>
+              <option value="20" selected>20</option>
+              <option value="30">30</option>
+            </select> 条
+          </label>
+          <button class="btn btn-ghost btn-sm" id="loginLogPrev" disabled>上一页</button>
+          <span class="pager-num" id="loginLogPageNum"></span>
+          <button class="btn btn-ghost btn-sm" id="loginLogNext" disabled>下一页</button>
+        </div>
+      </div>
+
+      <!-- 待放行审批 -->
+      <div class="card-head" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+        <h2>待放行审批</h2>
+        <span class="cnt" id="apCount">0</span>
+        <div class="spacer"></div>
+        <span class="geo-sub">放行仅对本次登录有效，用户下次登录需重新审批</span>
+      </div>
+      <div id="approvalList">
+        <div class="empty">加载中…</div>
+      </div>
+
+      <!-- 封禁管理 -->
+      <div class="card-head" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+        <h2>封禁管理</h2>
+        <span class="cnt" id="banCount">0</span>
+        <div class="spacer"></div>
+        <span class="geo-sub">连续错误 5 次依次封禁 1 分钟 / 5 分钟 / 10 分钟，之后仍错误则永久封禁</span>
+      </div>
+      <div id="banList">
+        <div class="empty">加载中…</div>
+      </div>
+    </div>
+
+    <!-- 管理操作审计：后台每个敏感动作都有记录，可追溯谁在什么时候做了什么 -->
+    <div class="card" id="auditCard" style="margin-top:18px">
+      <div class="card-head">
+        <h2>管理操作审计</h2>
+        <span class="cnt" id="auditCount">-</span>
+        <div class="spacer"></div>
+        <span class="geo-sub" style="font-size:12px">后台敏感操作（增删用户 / 改权限 / 重置密码 / 地域规则 / 审批）全程留痕</span>
+        <button class="btn btn-ghost btn-sm" id="auditRefresh">刷新</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:150px">时间</th><th>管理员</th><th>操作</th><th>对象</th><th>说明</th><th>IP</th>
+            </tr>
+          </thead>
+          <tbody id="auditBody">
+            <tr><td colspan="6" class="skeleton">加载中…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pager" id="auditPager" style="display:none">
+        <span class="pager-info" id="auditPageInfo"></span>
+        <div class="pager-ctrl">
+          <button class="btn btn-ghost btn-sm" id="auditPrev" disabled>上一页</button>
+          <span class="pager-num" id="auditPageNum"></span>
+          <button class="btn btn-ghost btn-sm" id="auditNext" disabled>下一页</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- F8 群公告：置顶横幅，对聊天室所有人可见 -->
+    <div class="card" style="margin-top:18px">
+      <div class="card-head">
+        <h2>群公告</h2>
+        <div class="spacer"></div>
+        <span class="geo-sub" style="font-size:12px">发布后所有在线成员顶部会立即出现横幅</span>
+        <button class="btn btn-ghost btn-sm" id="annLoadBtn">载入当前</button>
+      </div>
+      <div class="geo-form" style="grid-template-columns:1fr 2fr auto;align-items:end">
+        <div>
+          <label for="annTitleInput">标题</label>
+          <input id="annTitleInput" placeholder="公告" autocomplete="off" maxlength="40">
+        </div>
+        <div>
+          <label for="annBodyInput">内容</label>
+          <input id="annBodyInput" placeholder="输入公告内容，空标题/空内容则关闭公告" autocomplete="off" maxlength="2000">
+        </div>
+        <div class="save">
+          <button class="btn btn-primary" id="annSaveBtn">发布 / 更新</button>
+          <button class="btn btn-ghost" id="annOffBtn" style="margin-left:6px">关闭公告</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- F9 敏感词：命中后自动替换为 *** -->
+    <div class="card" style="margin-top:18px">
+      <div class="card-head">
+        <h2>敏感词</h2>
+        <span class="cnt" id="swCount">0</span>
+        <div class="spacer"></div>
+        <span class="geo-sub" style="font-size:12px">发送文本命中敏感词时自动替换为 ***，对所有成员生效</span>
+      </div>
+      <div class="geo-form" style="grid-template-columns:1fr auto;align-items:end">
+        <div>
+          <label for="swInput">新增敏感词</label>
+          <input id="swInput" placeholder="输入要屏蔽的词，回车或点按钮添加" autocomplete="off">
+        </div>
+        <div class="save">
+          <button class="btn btn-primary" id="swAddBtn">添加</button>
+        </div>
+      </div>
+      <div class="chip-row" id="swList" style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 18px 16px">
+        <span class="geo-sub">加载中…</span>
+      </div>
+    </div>
+
+    <!-- F10 清空聊天记录：按范围软删除（留痕可审计） -->
+    <div class="card" style="margin-top:18px">
+      <div class="card-head">
+        <h2>清空聊天记录</h2>
+        <div class="spacer"></div>
+        <span class="geo-sub" style="font-size:12px">软删除，仅从界面移除，磁盘记录与审计仍保留</span>
+      </div>
+      <div class="geo-form" style="grid-template-columns:1fr 1fr 1fr auto;align-items:end">
+        <div>
+          <label>范围</label>
+          <select id="clearScope">
+            <option value="public">公共房间</option>
+            <option value="dm">全部私聊</option>
+            <option value="all">全部（公共 + 私聊）</option>
+          </select>
+        </div>
+        <div>
+          <label>执行</label>
+          <button class="btn btn-danger" id="clearBtn">立即清空</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- 新增账号 -->
+<div class="overlay" id="createOverlay">
+  <div class="modal">
+    <h3>新增账号</h3>
+    <p class="sub">创建后把账号密码发给使用者，对方即可登录平台。</p>
+    <form id="createForm">
+      <div class="field">
+        <label for="cUser">账号</label>
+        <input id="cUser" placeholder="3-32 位字母、数字或 _ . -" required autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="cNick">昵称（可选）</label>
+        <input id="cNick" placeholder="留空则与账号相同" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="cPass">密码</label>
+        <input id="cPass" type="text" placeholder="至少 6 位" required autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label for="cRole">角色</label>
+        <select id="cRole">
+          <option value="member">普通成员</option>
+          <option value="admin">管理员</option>
+        </select>
+      </div>
+      <div class="err" id="createErr"></div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-close="createOverlay">取消</button>
+        <button type="submit" class="btn btn-primary" id="createSubmit">创建</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 重置密码 -->
+<div class="overlay" id="passOverlay">
+  <div class="modal">
+    <h3>重置密码</h3>
+    <p class="sub" id="passSub">-</p>
+    <form id="passForm">
+      <div class="field">
+        <label for="nPass">新密码</label>
+        <input id="nPass" type="text" placeholder="至少 6 位" required autocomplete="new-password">
+      </div>
+      <div class="err" id="passErr"></div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-close="passOverlay">取消</button>
+        <button type="submit" class="btn btn-primary" id="passSubmit">确认重置</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 删除确认 -->
+<div class="overlay" id="delOverlay">
+  <div class="modal">
+    <div class="danger-ico">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+      </svg>
+    </div>
+    <h3>删除账号</h3>
+    <p class="sub" id="delSub">-</p>
+    <p class="sub" style="color:#b45309">该账号将无法再登录；他发送过的历史消息会保留，作者显示为「已注销用户」。此操作不可撤销。</p>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-ghost" data-close="delOverlay">取消</button>
+      <button type="button" class="btn btn-primary" id="delSubmit" style="background:linear-gradient(135deg,#dc2626,#ef4444);box-shadow:0 6px 18px rgba(220,38,38,.28)">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/regions.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  var $ = function(id){ return document.getElementById(id); };
+  var me = null, users = [], pendingId = null;
+
+  var COLORS = [
+    ['#6366f1','#8b5cf6'],['#0ea5e9','#22d3ee'],['#f97316','#fb923c'],['#10b981','#34d399'],
+    ['#ec4899','#f472b6'],['#8b5cf6','#d946ef'],['#ef4444','#f87171'],['#14b8a6','#2dd4bf'],
+    ['#f59e0b','#fbbf24'],['#3b82f6','#60a5fa']
+  ];
+  function colorOf(id){
+    var c = COLORS[Math.abs(Number(id)||0) % COLORS.length];
+    return 'linear-gradient(135deg,' + c[0] + ',' + c[1] + ')';
+  }
+  function initial(s){ s = String(s||'?').trim(); return s ? s.slice(0,1).toUpperCase() : '?'; }
+
+  function toast(msg){
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._tid);
+    t._tid = setTimeout(function(){ t.classList.remove('show'); }, 2800);
+  }
+
+  function humanSize(n){
+    n = Number(n)||0;
+    if (n < 1024) return n + ' B';
+    var u = ['KB','MB','GB','TB'], i = -1;
+    do { n /= 1024; i++; } while (n >= 1024 && i < u.length-1);
+    return (n < 10 ? n.toFixed(1) : Math.round(n)) + ' ' + u[i];
+  }
+
+  function fmtTime(ts){
+    if (!ts) return '—';
+    var d = new Date(ts), now = Date.now(), diff = now - ts;
+    if (diff < 60000) return '刚刚';
+    if (diff < 3600000) return Math.floor(diff/60000) + ' 分钟前';
+    if (diff < 86400000) return Math.floor(diff/3600000) + ' 小时前';
+    if (diff < 7*86400000) return Math.floor(diff/86400000) + ' 天前';
+    var p = function(x){ return x < 10 ? '0'+x : ''+x; };
+    return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  function api(url, opts){
+    opts = opts || {};
+    opts.credentials = 'same-origin';
+    if (opts.body && typeof opts.body !== 'string') {
+      opts.headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+      opts.body = JSON.stringify(opts.body);
+    }
+    return fetch(url, opts).then(function(r){
+      return r.json().catch(function(){ return {}; }).then(function(d){
+        return { ok: r.ok, status: r.status, d: d };
+      });
+    });
+  }
+
+  /* ---------- 弹窗 ---------- */
+  function open(id){ $(id).classList.add('show'); }
+  function close(id){ $(id).classList.remove('show'); }
+  document.querySelectorAll('[data-close]').forEach(function(b){
+    b.addEventListener('click', function(){ close(b.dataset.close); });
+  });
+  document.querySelectorAll('.overlay').forEach(function(o){
+    o.addEventListener('click', function(e){ if (e.target === o) o.classList.remove('show'); });
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') document.querySelectorAll('.overlay.show').forEach(function(o){ o.classList.remove('show'); });
+  });
+
+  /* ---------- 加载 ---------- */
+  function loadStats(){
+    return api('/api/admin/stats').then(function(res){
+      if (!res.ok) return;
+      var d = res.d;
+      var items = [
+        { k: '账号总数', v: d.users, s: '个' },
+        { k: '普通成员', v: d.members, s: '个' },
+        { k: '消息总数', v: d.messages, s: '条' },
+        { k: '当前在线', v: d.online, s: '人' },
+        { k: '文件占用', v: humanSize(d.fileBytes), s: '' },
+        { k: '数据库', v: humanSize(d.dbBytes), s: '' }
+      ];
+      $('stats').innerHTML = items.map(function(it){
+        return '<div class="stat"><div class="k">' + it.k + '</div><div class="v">' +
+          it.v + (it.s ? '<small>' + it.s + '</small>' : '') + '</div></div>';
+      }).join('');
+    });
+  }
+
+  function loadUsers(){
+    return api('/api/admin/users').then(function(res){
+      if (res.status === 401 || res.status === 403) { showDenied(); return; }
+      users = (res.d && res.d.users) || [];
+      renderUsers();
+    });
+  }
+
+  function renderUsers(){
+    var tb = $('tbody');
+    $('userCount').textContent = users.length;
+    if (!users.length) {
+      tb.innerHTML = '<tr><td colspan="9" class="empty">还没有账号</td></tr>';
+      return;
+    }
+    tb.innerHTML = '';
+    users.forEach(function(u){
+      var tr = document.createElement('tr');
+
+      var tdU = document.createElement('td');
+      var cell = document.createElement('div');
+      cell.className = 'u-cell';
+      var av = document.createElement('div');
+      av.className = 'avatar';
+      av.style.background = colorOf(u.id);
+      av.textContent = initial(u.nickname || u.username);
+      var box = document.createElement('div');
+      var nm = document.createElement('div');
+      nm.className = 'u-name';
+      nm.textContent = u.nickname;
+      var sub = document.createElement('div');
+      sub.className = 'u-sub';
+      sub.textContent = '@' + u.username + (u.createdBy ? ' · 由 ' + u.createdBy + ' 创建' : '');
+      box.appendChild(nm); box.appendChild(sub);
+      cell.appendChild(av); cell.appendChild(box);
+      tdU.appendChild(cell);
+      tr.appendChild(tdU);
+
+      var tdRole = document.createElement('td');
+      var sel = document.createElement('select');
+      sel.className = 'role-sel';
+      var oA = document.createElement('option'); oA.value = 'admin'; oA.textContent = '管理员';
+      var oM = document.createElement('option'); oM.value = 'member'; oM.textContent = '成员';
+      sel.appendChild(oA); sel.appendChild(oM);
+      sel.value = u.role === 'admin' ? 'admin' : 'member';
+      if (u.id === me.id) sel.disabled = true; // 自己的角色不可改
+      sel.addEventListener('change', function(){
+        var nv = this.value;
+        if (nv === u.role) return;
+        // 防手滑：直接降级有风险，改前确认
+        if (!confirm('确定把「' + u.nickname + '（@' + u.username + '）」的角色改为「' +
+            (nv === 'admin' ? '管理员' : '成员') + '」吗？' + (nv === 'member' ? '\n\n改后他将失去全部管理权限。' : ''))) {
+          this.value = u.role; // 还原
+          return;
+        }
+        this.classList.add('loading'); this.disabled = true;
+        var self = this;
+        api('/api/admin/users/' + u.id, { method: 'PATCH', body: { role: nv } }).then(function(res){
+          if (!res.ok) {
+            toast((res.d && res.d.error) || '修改失败');
+            self.value = u.role; // 失败还原
+            self.disabled = (u.id === me.id);
+            self.classList.remove('loading');
+            return;
+          }
+          toast('已将「' + u.nickname + '」设为' + (nv === 'admin' ? '管理员' : '普通成员'));
+          refresh();
+        });
+      });
+      tdRole.appendChild(sel);
+      tr.appendChild(tdRole);
+
+      var tdSt = document.createElement('td');
+      var st = document.createElement('span');
+      st.className = 'tag ' + (u.disabled ? 'tag-off' : 'tag-on');
+      st.textContent = u.disabled ? '已停用' : '正常';
+      tdSt.appendChild(st);
+      tr.appendChild(tdSt);
+
+      var tdM = document.createElement('td');
+      tdM.className = 'num'; tdM.textContent = u.msgCount;
+      tr.appendChild(tdM);
+
+      var tdF = document.createElement('td');
+      tdF.className = 'num'; tdF.textContent = u.fileCount;
+      tr.appendChild(tdF);
+
+      var tdL = document.createElement('td');
+      tdL.style.color = '#6b7280'; tdL.style.fontSize = '13px';
+      tdL.textContent = fmtTime(u.lastSeen);
+      tr.appendChild(tdL);
+
+      // 最近一次登录用的 IP 和归属地
+      var tdIp = document.createElement('td');
+      if (u.lastIp) {
+        var ipd = document.createElement('div');
+        ipd.className = 'ip';
+        ipd.textContent = u.lastIp;
+        var sub2 = document.createElement('div');
+        sub2.className = 'geo-sub';
+        sub2.textContent = u.ipRegion ? u.ipRegion + (u.ipIsp ? ' · ' + u.ipIsp : '') : '归属地未记录';
+        tdIp.appendChild(ipd);
+        tdIp.appendChild(sub2);
+        // 已知 IP 段（免审批记忆）：鼠标悬浮看到详情，一眼判断是不是本人常用网络
+        if (u.knownIps && u.knownIps.length) {
+          var kd = document.createElement('div');
+          kd.className = 'geo-sub';
+          kd.style.color = '#10b981';
+          kd.title = '该账号登录成功过的 IP 段：' + u.knownIps.join('、') + '。同段新 IP 登录免审批。';
+          kd.textContent = '记忆 ' + u.knownIps.length + ' 段';
+          tdIp.appendChild(kd);
+        }
+      } else {
+        tdIp.style.color = '#9ca3af';
+        tdIp.style.fontSize = '13px';
+        tdIp.textContent = '—';
+      }
+      tr.appendChild(tdIp);
+
+      var tdC = document.createElement('td');
+      tdC.style.color = '#6b7280'; tdC.style.fontSize = '13px';
+      tdC.textContent = fmtTime(u.createdAt);
+      tr.appendChild(tdC);
+
+      var tdA = document.createElement('td');
+      var acts = document.createElement('div');
+      acts.className = 'acts';
+      acts.style.justifyContent = 'flex-end';
+
+      acts.appendChild(mkAct('改密码', '', function(){
+        pendingId = u.id;
+        $('passSub').textContent = '为「' + u.nickname + '（@' + u.username + '）」设置新密码';
+        $('nPass').value = '';
+        $('passErr').textContent = '';
+        open('passOverlay');
+        setTimeout(function(){ $('nPass').focus(); }, 100);
+      }));
+
+      if (u.id !== me.id) {
+        acts.appendChild(mkAct(u.disabled ? '启用' : '停用', u.disabled ? 'ok' : 'warn', function(){
+          api('/api/admin/users/' + u.id, {
+            method: 'PATCH',
+            body: { disabled: !u.disabled }
+          }).then(function(res){
+            if (!res.ok) { toast((res.d && res.d.error) || '操作失败'); return; }
+            toast(u.disabled ? '已启用该账号' : '已停用该账号');
+            refresh();
+          });
+        }));
+        acts.appendChild(mkAct('删除', 'danger', function(){
+          pendingId = u.id;
+          $('delSub').textContent = '确定删除「' + u.nickname + '（@' + u.username + '）」吗？';
+          open('delOverlay');
+        }));
+      }
+
+      tdA.appendChild(acts);
+      tr.appendChild(tdA);
+      tb.appendChild(tr);
+    });
+  }
+
+  function mkAct(label, cls, fn){
+    var b = document.createElement('button');
+    b.className = 'act' + (cls ? ' ' + cls : '');
+    b.textContent = label;
+    b.addEventListener('click', fn);
+    return b;
+  }
+
+  /* ---------- 访问安全 ---------- */
+  var geoState = { conf: null, mode: 'off', logOnly: '', logPage: 1, logSize: 20 };
+
+  function esc2(s){
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function td(text, color, size){
+    var el = document.createElement('td');
+    if (color) el.style.color = color;
+    if (size) el.style.fontSize = size;
+    el.textContent = text == null ? '' : text;
+    return el;
+  }
+
+  function loadGeo(){
+    return api('/api/admin/geo').then(function(res){
+      if (res.status === 401 || res.status === 403) { showDenied(); return; }
+      if (!res.ok) return;
+      renderGeo(res.d);
+    });
+  }
+
+  /* ---------- 行政区划联动（regions.js 提供 CHINA_REGIONS: {省: [市...]}） ---------- */
+  function provList(){ return window.CHINA_REGIONS ? Object.keys(window.CHINA_REGIONS) : []; }
+  function cityList(provs){
+    if (!window.CHINA_REGIONS) return [];
+    if (provs && provs.length) {
+      var s = new Set();
+      provs.forEach(function(p){ var c = window.CHINA_REGIONS[p]; if (c) c.forEach(function(x){ s.add(x); }); });
+      return Array.from(s);
+    }
+    var all = [];
+    Object.keys(window.CHINA_REGIONS).forEach(function(p){
+      (window.CHINA_REGIONS[p] || []).forEach(function(x){ all.push(x); });
+    });
+    return all;
+  }
+  // 填充 select（保留已选值），返回是否成功
+  function fillSelect(sel, items, selected){
+    var keep = selected || [];
+    var keepSet = {};
+    keep.forEach(function(k){ keepSet[k] = true; });
+    sel.innerHTML = '';
+    items.forEach(function(it){
+      var o = document.createElement('option');
+      o.value = it;
+      o.textContent = it;
+      if (keepSet[it]) o.selected = true;
+      sel.appendChild(o);
+    });
+    return items.length > 0;
+  }
+  function selectedVals(sel){
+    return Array.prototype.slice.call(sel.selectedOptions || []).map(function(o){ return o.value; });
+  }
+
+  function renderGeo(d){
+    geoState.conf = d.conf;
+    geoState.mode = d.mode;
+    geoState.killFile = d.killFile;
+
+    var badge = $('geoBadge');
+    badge.className = 'geo-badge ' + (d.mode === 'on' ? 'on' : d.mode === 'log' ? 'log' : 'off');
+    $('geoBadgeText').textContent =
+      d.mode === 'on' ? '拦截中' : (d.mode === 'log' ? '只记录，不拦截' : '已关闭');
+
+    var c = d.conf;
+    // 规则摘要
+    var parts = [];
+    if (c.provOn && c.provinces.length) parts.push('省：<b>' + esc2(c.provinces.join('、')) + '</b>');
+    if (c.cityOn && c.cities.length) parts.push('市：<b>' + esc2(c.cities.join('、')) + '</b>');
+    if (!parts.length) parts.push('不限地区');
+    $('geoDesc').innerHTML =
+      '放行 ' + parts.join(' / ') +
+      ' · 白名单 <b>' + c.allowIps.length + '</b> 个 IP' +
+      ' · 归属地查不到时<b>' + (c.failOpen ? '放行' : '拦截') + '</b>';
+
+    // 开关
+    $('geoProvOn').checked = !!c.provOn;
+    $('geoCityOn').checked = !!c.cityOn;
+    $('geoIps').value = c.allowIps.join(',');
+
+    // 行政区划下拉（省→市联动）
+    var pl = provList();
+    fillSelect($('geoProv'), pl, c.provinces);
+    fillSelect($('geoCity'), cityList(c.provinces), c.cities);
+
+    updateGeoRules();
+
+    Array.prototype.forEach.call($('geoModes').children, function(b){
+      b.classList.toggle('on', b.dataset.mode === d.mode);
+    });
+
+    Array.prototype.forEach.call($('geoUnknown').children, function(b){
+      b.classList.toggle('on', (b.dataset.unknown === '1') === !!c.failOpen);
+    });
+
+    $('geoKillNote').innerHTML = d.killSwitch
+      ? '⚠ 紧急开关处于打开状态（服务器上存在 <code>' + esc2(d.killFile) + '</code>），当前不拦截任何访问。删掉这个文件再刷新即可恢复拦截。'
+      : '紧急开关：万一规则配错把自己挡在外面，在服务器上执行 <code>touch ' + esc2(d.killFile) + '</code> 即可立即关闭地域拦截。';
+  }
+
+  // 更新联动与提示（省变化→刷新市）
+  function updateGeoRules(){
+    var provs = selectedVals($('geoProv'));
+    var cities = selectedVals($('geoCity'));
+    fillSelect($('geoCity'), cityList(provs), cities);
+    $('geoProvTips').textContent = provs.length ? '已选 ' + provs.length + ' 个省' : '未选择省份（开启后 = 不限制）';
+    $('geoCityTips').textContent = cities.length ? '已选 ' + cities.length + ' 个市' : '未选择城市（开启后 = 不限制）';
+  }
+
+  function loadLog(only, page){
+    if (typeof only === 'string') geoState.logOnly = only;
+    if (typeof page === 'number') geoState.logPage = page;
+    var url = '/api/admin/access?size=' + geoState.logSize + '&page=' + geoState.logPage +
+      (geoState.logOnly ? '&only=' + geoState.logOnly : '');
+    return api(url).then(function(res){
+      if (res.status === 401 || res.status === 403) { showDenied(); return; }
+      if (!res.ok) return;
+      renderLog(res.d);
+    });
+  }
+
+  function renderLogPager(d){
+    var pager = $('logPager');
+    var prev = $('logPrev'), next = $('logNext');
+    if (!d.total) { pager.style.display = 'none'; return; }
+    pager.style.display = 'flex';
+    $('logPageInfo').textContent = '第 ' + d.page + ' / ' + d.pages + ' 页 · 共 ' + d.total + ' 条';
+    $('logPageNum').textContent = d.page + ' / ' + d.pages;
+    prev.disabled = d.page <= 1;
+    next.disabled = d.page >= d.pages;
+  }
+
+  function renderLog(d){
+    $('geoLogStat').textContent = '共 ' + d.total + ' 条，其中拦截 ' + d.blocked + ' 条';
+    renderLogPager(d);
+    var tb = $('logBody');
+    if (!d.logs.length) {
+      tb.innerHTML = '<tr><td colspan="6" class="empty">还没有访问记录</td></tr>';
+      return;
+    }
+    tb.innerHTML = '';
+    d.logs.forEach(function(l){
+      var tr = document.createElement('tr');
+      tr.appendChild(td(fmtTime(l.createdAt), '#6b7280', '13px'));
+
+      var tdIp = document.createElement('td');
+      var ipd = document.createElement('div');
+      ipd.className = 'ip';
+      ipd.textContent = l.ip || '—';
+      tdIp.appendChild(ipd);
+      if (l.username) {
+        var us = document.createElement('div');
+        us.className = 'geo-sub';
+        us.textContent = '@' + l.username;
+        tdIp.appendChild(us);
+      }
+      tr.appendChild(tdIp);
+
+      tr.appendChild(td(l.region || '未知'));
+      tr.appendChild(td(l.isp || '—', '#6b7280', '12.5px'));
+
+      var tdR = document.createElement('td');
+      var tag = document.createElement('span');
+      tag.className = 'geo-tag ' + (l.allowed ? 'ok' : 'no');
+      tag.textContent = l.allowed ? '放行' : '拦截';
+      tdR.appendChild(tag);
+      tr.appendChild(tdR);
+
+      tr.appendChild(td(l.reason || '', '#6b7280', '12.5px'));
+      tb.appendChild(tr);
+    });
+  }
+
+  function refresh(){
+    return Promise.all([loadUsers(), loadStats(), loadGeo(), loadLog(), loadLoginLog(), loadApprovals(), loadBans(), loadAudit()]);
+  }
+
+  /* ---------- 登录安全（登录动态 / 待放行 / 封禁） ---------- */
+  var sec = { logs: [], approvals: [], bans: [], pendingCount: 0, unread: 0, logPage: 1, logSize: 20 };
+
+  /* ---------- 管理操作审计 ---------- */
+  var auditState = { logs: [], page: 1, pages: 1, total: 0 };
+  function loadAudit(page){
+    if (typeof page === 'number') auditState.page = page;
+    return api('/api/admin/audit?size=20&page=' + auditState.page).then(function(res){
+      if (!res.ok) return;
+      auditState.logs = res.d.logs || [];
+      auditState.total = res.d.total || 0;
+      auditState.pages = res.d.pages || 1;
+      renderAudit();
+    });
+  }
+  var ACTION_TEXT = {
+    create_user: '创建账号', update_user: '修改账号', reset_password: '重置密码',
+    delete_user: '删除账号', unban_user: '解封账号', update_geo: '修改地域规则',
+    approve_login: '放行登录', reject_login: '拒绝登录'
+  };
+  function renderAudit(){
+    var tb = $('auditBody');
+    $('auditCount').textContent = auditState.total + ' 条';
+    var pager = $('auditPager');
+    if (!auditState.total) {
+      tb.innerHTML = '<tr><td colspan="6" class="empty">还没有管理操作记录</td></tr>';
+      pager.style.display = 'none';
+      return;
+    }
+    pager.style.display = 'flex';
+    $('auditPageInfo').textContent = '第 ' + auditState.page + ' / ' + auditState.pages + ' 页 · 共 ' + auditState.total + ' 条';
+    $('auditPageNum').textContent = auditState.page + ' / ' + auditState.pages;
+    $('auditPrev').disabled = auditState.page <= 1;
+    $('auditNext').disabled = auditState.page >= auditState.pages;
+    tb.innerHTML = '';
+    auditState.logs.forEach(function(l){
+      var tr = document.createElement('tr');
+      tr.appendChild(td(fmtTime(l.createdAt), '#6b7280', '13px'));
+      var tAdmin = document.createElement('td');
+      var an = document.createElement('div');
+      an.style.fontWeight = '560';
+      an.textContent = l.admin || '—';
+      tAdmin.appendChild(an);
+      tr.appendChild(tAdmin);
+      var tAct = document.createElement('td');
+      var actTag = document.createElement('span');
+      actTag.className = 'status-chip ' + (l.action.indexOf('delete') >= 0 || l.action.indexOf('reject') >= 0 ? 'fail' : 'success');
+      actTag.textContent = ACTION_TEXT[l.action] || l.action;
+      tAct.appendChild(actTag);
+      tr.appendChild(tAct);
+      var tTgt = document.createElement('td');
+      tTgt.textContent = l.target || '—';
+      tr.appendChild(tTgt);
+      var tDet = document.createElement('td');
+      tDet.className = 'reason-cell';
+      tDet.textContent = l.detail || '';
+      tr.appendChild(tDet);
+      var tIp = document.createElement('td');
+      var ipd = document.createElement('span');
+      ipd.className = 'ip';
+      ipd.textContent = l.ip || '—';
+      tIp.appendChild(ipd);
+      tr.appendChild(tIp);
+      tb.appendChild(tr);
+    });
+  }
+
+  function loadLoginLog(page){
+    if (typeof page === 'number') sec.logPage = page;
+    var url = '/api/admin/login-log?size=' + sec.logSize + '&page=' + sec.logPage;
+    return api(url).then(function(res){
+      if (!res.ok) return;
+      sec.logs = res.d.logs || [];
+      sec.logTotal = res.d.total || 0;
+      sec.logPages = res.d.pages || 1;
+      renderLoginLog();
+    });
+  }
+
+  function renderLoginLogPager(){
+    var pager = $('loginLogPager');
+    var prev = $('loginLogPrev'), next = $('loginLogNext');
+    if (!sec.logTotal) { pager.style.display = 'none'; return; }
+    pager.style.display = 'flex';
+    $('loginLogPageInfo').textContent = '第 ' + sec.logPage + ' / ' + sec.logPages + ' 页 · 共 ' + sec.logTotal + ' 条';
+    $('loginLogPageNum').textContent = sec.logPage + ' / ' + sec.logPages;
+    prev.disabled = sec.logPage <= 1;
+    next.disabled = sec.logPage >= sec.logPages;
+  }
+
+  function renderLoginLog(){
+    var tb = $('loginLogBody');
+    $('secCount').textContent = sec.logTotal + ' 条';
+    renderLoginLogPager();
+    if (!sec.logs.length) {
+      tb.innerHTML = '<tr><td colspan="6" class="empty">还没有登录记录</td></tr>';
+      return;
+    }
+    var RESULT_TEXT = {
+      success: '登录成功', fail: '密码错误', banned: '已被封禁', locked: '触发限流',
+      pending: '待放行', denied: '已拒绝', geo_blocked: '地域拦截'
+    };
+    tb.innerHTML = '';
+    sec.logs.forEach(function(l){
+      var tr = document.createElement('tr');
+      tr.appendChild(td(fmtTime(l.createdAt), '#6b7280', '13px'));
+
+      var tdU = document.createElement('td');
+      var un = document.createElement('div');
+      un.style.fontWeight = '560';
+      un.textContent = l.username || '—';
+      tdU.appendChild(un);
+      tr.appendChild(tdU);
+
+      // 设备列（由 UA 解析）
+      var tdD = document.createElement('td');
+      if (l.device) {
+        var dv = document.createElement('div');
+        dv.className = 'device-cell';
+        dv.textContent = l.device;
+        tdD.appendChild(dv);
+      } else {
+        tdD.textContent = '—';
+      }
+      tr.appendChild(tdD);
+
+      var tdIp = document.createElement('td');
+      var ipd = document.createElement('div');
+      ipd.className = 'ip';
+      ipd.textContent = l.ip || '—';
+      tdIp.appendChild(ipd);
+      var regionUnknown = !l.region || l.region === '未知' || l.region === '未知（查询失败）';
+      if (regionUnknown) {
+        // 归属地查不到：红色「有风险」徽标 + 刷新重试提示
+        var rg = document.createElement('div');
+        rg.className = 'geo-sub risk';
+        rg.textContent = '归属地未知';
+        var warn = document.createElement('span');
+        warn.className = 'risk-chip';
+        warn.textContent = '有风险';
+        rg.appendChild(warn);
+        tdIp.appendChild(rg);
+        var rt = document.createElement('div');
+        rt.className = 'geo-sub';
+        rt.textContent = '刷新重试';
+        tdIp.appendChild(rt);
+      } else if (l.region) {
+        var rg2 = document.createElement('div');
+        rg2.className = 'geo-sub';
+        rg2.textContent = l.region + (l.isp ? ' · ' + l.isp : '');
+        tdIp.appendChild(rg2);
+      }
+      tr.appendChild(tdIp);
+
+      var tdR = document.createElement('td');
+      var chip = document.createElement('span');
+      chip.className = 'status-chip ' + l.result;
+      chip.textContent = RESULT_TEXT[l.result] || l.result;
+      tdR.appendChild(chip);
+      tr.appendChild(tdR);
+
+      var tdRe = document.createElement('td');
+      var rn = document.createElement('div');
+      rn.className = 'reason-cell';
+      rn.textContent = l.reason || '';
+      tdRe.appendChild(rn);
+      tr.appendChild(tdRe);
+
+      tb.appendChild(tr);
+    });
+  }
+
+  function loadApprovals(){
+    return api('/api/admin/approvals').then(function(res){
+      if (!res.ok) return;
+      sec.approvals = res.d.approvals || [];
+      sec.pendingCount = sec.approvals.length;
+      renderApprovals();
+      updateBell();
+    });
+  }
+
+  function renderApprovals(){
+    var box = $('approvalList');
+    $('apCount').textContent = sec.approvals.length;
+    if (!sec.approvals.length) {
+      box.innerHTML = '<div class="empty">没有待放行的登录请求</div>';
+      return;
+    }
+    box.innerHTML = '';
+    sec.approvals.forEach(function(a){
+      var row = document.createElement('div');
+      row.className = 'approval-row';
+
+      var user = document.createElement('div');
+      user.className = 'ap-user';
+      var un = document.createElement('div');
+      un.style.fontWeight = '620';
+      un.textContent = '@' + a.username;
+      var first = document.createElement('div');
+      first.className = 'ap-meta';
+      first.textContent = a.firstLogin ? '首次登录' : '换 IP 登录';
+      // 同段标记：该 IP 段用户登录成功过 → 大概率本人换网络，可放心放行
+      if (a.sameSeg) {
+        var sameTag = document.createElement('span');
+        sameTag.className = 'risk-chip';
+        sameTag.style.background = 'var(--ok-soft, #ecfdf5)';
+        sameTag.style.color = 'var(--ok, #059669)';
+        sameTag.textContent = '常用 IP 段';
+        first.appendChild(sameTag);
+      }
+      user.appendChild(un);
+      user.appendChild(first);
+      row.appendChild(user);
+
+      var ipc = document.createElement('div');
+      ipc.style.minWidth = '170px';
+      var ipd = document.createElement('div');
+      ipd.className = 'ap-ip';
+      ipd.textContent = a.ip;
+      var rg = document.createElement('div');
+      rg.className = 'ap-meta';
+      var regionUnknown = !a.region || a.region === '未知' || a.region === '未知（查询失败）';
+      if (regionUnknown) {
+        rg.textContent = '归属地未知 ';
+        var warn = document.createElement('span');
+        warn.className = 'risk-chip';
+        warn.textContent = '有风险';
+        rg.appendChild(warn);
+      } else {
+        rg.textContent = a.region || '归属地未知';
+      }
+      if (a.isp && !regionUnknown) rg.textContent += ' · ' + a.isp;
+      ipc.appendChild(ipd);
+      ipc.appendChild(rg);
+      if (a.device) {
+        var dv = document.createElement('div');
+        dv.className = 'ap-meta';
+        dv.style.color = '#374151';
+        dv.textContent = a.device;
+        ipc.appendChild(dv);
+      }
+      row.appendChild(ipc);
+
+      var tm = document.createElement('div');
+      tm.className = 'ap-meta';
+      tm.style.minWidth = '90px';
+      tm.textContent = fmtTime(a.createdAt);
+      row.appendChild(tm);
+
+      var expired = a.expiresAt && Date.now() > a.expiresAt;
+      var note = document.createElement('div');
+      note.className = expired ? 'expired-tag' : 'ap-note';
+      note.textContent = expired ? '已过期，等待用户重新发起' : (a.sameSeg ? '该 IP 段常用：放行后此段免审批（已自动记忆）' : '放行后从该 IP 登录即可（IP 段将被记忆，同段免审批）');
+      row.appendChild(note);
+
+      var acts = document.createElement('div');
+      acts.className = 'ap-actions';
+      if (!expired) {
+        var okBtn = mkAct('放行', 'ok', function(){
+          decideApproval(a.id, 'approve', row);
+        });
+        var noBtn = mkAct('拒绝', 'danger', function(){
+          decideApproval(a.id, 'reject', row);
+        });
+        acts.appendChild(noBtn);
+        acts.appendChild(okBtn);
+      }
+      row.appendChild(acts);
+
+      box.appendChild(row);
+    });
+  }
+
+  function decideApproval(id, decide, rowEl){
+    api('/api/admin/approvals/' + id + '/decide', { method: 'POST', body: { decide: decide } })
+      .then(function(res){
+        if (!res.ok) { toast((res.d && res.d.error) || '操作失败'); return; }
+        toast(res.d.approved ? '已放行，用户从该 IP 重新登录即可进入' : '已拒绝该登录请求');
+        loadApprovals();
+        loadLoginLog();
+      });
+  }
+
+  function loadBans(){
+    return api('/api/admin/bans').then(function(res){
+      if (!res.ok) return;
+      sec.bans = res.d.bans || [];
+      renderBans();
+    });
+  }
+
+  function renderBans(){
+    var box = $('banList');
+    var active = sec.bans.filter(function(b){
+      return b.permanent || (b.until && b.until > Date.now());
+    });
+    $('banCount').textContent = active.length;
+    if (!active.length) {
+      box.innerHTML = '<div class="empty">没有封禁中的账号</div>';
+      return;
+    }
+    box.innerHTML = '';
+    active.forEach(function(b){
+      var row = document.createElement('div');
+      row.className = 'approval-row';
+
+      var user = document.createElement('div');
+      user.className = 'ap-user';
+      var un = document.createElement('div');
+      un.style.fontWeight = '620';
+      un.textContent = '@' + b.username + '（' + b.nickname + '）';
+      var meta = document.createElement('div');
+      meta.className = 'ap-meta';
+      meta.textContent = b.permanent ? '永久封禁' : '临时封禁';
+      user.appendChild(un);
+      user.appendChild(meta);
+      row.appendChild(user);
+
+      var det = document.createElement('div');
+      det.style.minWidth = '200px';
+      det.className = 'ap-meta';
+      det.textContent = b.permanent
+        ? (b.reason || '连续错误次数过多')
+        : '剩余 ' + Math.ceil((b.until - Date.now()) / 60000) + ' 分钟解禁（第 ' + b.level + ' 档）';
+      row.appendChild(det);
+
+      var acts = document.createElement('div');
+      acts.className = 'ap-actions';
+      acts.appendChild(mkAct('解封', 'ok', function(){
+        if (!confirm('确定解封 @' + b.username + ' 吗？解封后对方即可重新尝试登录。')) return;
+        api('/api/admin/bans/' + b.userId + '/unban', { method: 'POST' })
+          .then(function(res){
+            if (!res.ok) { toast((res.d && res.d.error) || '解封失败'); return; }
+            toast('已解封 @' + b.username);
+            loadBans();
+            loadLoginLog();
+          });
+      }));
+      row.appendChild(acts);
+
+      box.appendChild(row);
+    });
+  }
+
+  /* ---------- 实时通知（Socket） ---------- */
+  function connectAdminSocket(){
+    if (window.secSocket) return;
+    var s = window.secSocket = io({ withCredentials: true, transports: ['websocket', 'polling'] });
+
+    s.on('security:approval', function(data){
+      sec.unread += 1;
+      updateBell();
+      // 顶部提示条
+      var box = $('secAlert');
+      box.innerHTML = '';
+      var al = document.createElement('div');
+      al.className = 'sec-alert pending';
+      al.innerHTML = '<b>新登录请求</b> @' + esc2(data.username) + ' 从 ' + esc2(data.ip) +
+        '（' + esc2(data.region || '归属地未知') + '）请求登录，需要你决定是否放行。';
+      var go = document.createElement('button');
+      go.className = 'btn btn-ghost btn-sm';
+      go.textContent = '去处理';
+      go.addEventListener('click', function(){
+        document.getElementById('secCard').scrollIntoView({ behavior: 'smooth' });
+        box.innerHTML = '';
+      });
+      al.appendChild(go);
+      box.appendChild(al);
+      box.classList.remove('hidden');
+      loadApprovals();
+      loadLoginLog();
+    });
+
+    s.on('security:approval_handled', function(){
+      loadApprovals();
+      loadLoginLog();
+    });
+
+    s.on('security:ban_lifted', function(){
+      loadBans();
+    });
+
+    s.on('connect', function(){ setBellLive(true); });
+    s.on('disconnect', function(){ setBellLive(false); });
+  }
+
+  function setBellLive(live){
+    $('bellBtn').title = live ? '登录安全通知（实时连接中）' : '登录安全通知（连接已断开）';
+    $('bellBtn').style.opacity = live ? '1' : '0.55';
+  }
+
+  function updateBell(){
+    var badge = $('bellBadge');
+    var n = sec.unread + sec.pendingCount;
+    badge.textContent = n > 99 ? '99+' : String(n);
+    badge.classList.toggle('hidden', n === 0);
+    $('secStat').textContent = '待放行 ' + sec.pendingCount + ' · 封禁 ' +
+      sec.bans.filter(function(b){ return b.permanent || (b.until && b.until > Date.now()); }).length +
+      ' · 近 24h 登录 ' + (window.__sec24 || '-');
+  }
+
+  function loadSecStats(){
+    api('/api/admin/security').then(function(res){
+      if (!res.ok) return;
+      var d = res.d;
+      window.__sec24 = d.log24h;
+      sec.pendingCount = d.pending;
+      updateBell();
+      renderTls(d);
+    });
+  }
+
+  // 顶栏徽标 + 访问安全顶部提示条：真实反映当前访问通道（HTTP 明文 / HTTPS 加密）。
+  // 服务端 /api/admin/security 会根据 req.secure + httpsServer 是否就绪给出判断。
+  function renderTls(d){
+    var secure = !!(d && d.httpsEnabled);
+    var chip = $('tlsChip');
+    var chipText = $('tlsChipText');
+    var banner = $('tlsBanner');
+    var bannerText = $('tlsBannerText');
+    var goBtn = $('tlsGoHttps');
+    if (secure) {
+      chip.className = 'tls-chip secure';
+      chipText.textContent = 'HTTPS 已加密';
+      banner.className = 'tls-banner secure';
+      bannerText.innerHTML = '<b>传输通道已加密。</b>当前通过 HTTPS 安全通道访问，消息与文件传输均经过 TLS 加密。';
+      goBtn.style.display = 'none';
+    } else {
+      chip.className = 'tls-chip plain';
+      chipText.textContent = '未加密';
+      banner.className = 'tls-banner plain';
+      bannerText.innerHTML = '<b>当前为 HTTP 明文访问。</b>传输内容存在被窃听的风险。HTTPS 服务已在运行（端口 8443），请改用加密地址访问后台。';
+      goBtn.style.display = '';
+    }
+  }
+
+  $('tlsGoHttps').addEventListener('click', function(){
+    location.href = 'https://' + location.hostname + ':8443' + location.pathname;
+  });
+
+  $('bellBtn').addEventListener('click', function(){
+    sec.unread = 0;
+    updateBell();
+    $('secCard').scrollIntoView({ behavior: 'smooth' });
+  });
+
+  $('secRefresh').addEventListener('click', function(){
+    Promise.all([loadLoginLog(), loadApprovals(), loadBans(), loadSecStats()]).then(function(){
+      toast('已刷新');
+    });
+  });
+
+  $('secClear').addEventListener('click', function(){
+    if (!confirm('确定清空全部登录日志吗？')) return;
+    api('/api/admin/login-log', { method: 'DELETE' }).then(function(){
+      toast('登录日志已清空');
+      sec.logPage = 1;
+      loadLoginLog();
+    });
+  });
+
+  function showDenied(){
+    $('app').classList.add('hidden');
+    $('denied').classList.remove('hidden');
+    $('whoami').textContent = '未登录或权限不足';
+  }
+
+  /* ---------- 表单 ---------- */
+  $('newUserBtn').addEventListener('click', function(){
+    $('createForm').reset();
+    $('createErr').textContent = '';
+    open('createOverlay');
+    setTimeout(function(){ $('cUser').focus(); }, 100);
+  });
+
+  /* ---------- 访问安全：交互 ---------- */
+  $('geoModes').addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('button') : null;
+    if (!b || !b.dataset.mode) return;
+    var c = geoState.conf || { provinces: [], cities: [] };
+
+    if (b.dataset.mode === 'on') {
+      var scope = (c.provinces.join('、') || '不限省份') + (c.cities.length ? ' / ' + c.cities.join('、') : '');
+      if (!confirm('确定开启地域拦截吗？\n\n只放行：' + scope +
+        '\n白名单 IP：' + (c.allowIps.length ? c.allowIps.length + ' 个' : '无') +
+        '\n\n其他地区的访问会被直接拒绝。\n\n如果规则配错把自己挡在外面，在服务器执行：\ntouch ' +
+        (geoState.killFile || '数据目录下 geo-guard-off 文件') + '\n即可立即关闭拦截。')) return;
+    }
+
+    api('/api/admin/geo', { method: 'PATCH', body: { mode: b.dataset.mode } }).then(function(res){
+      if (!res.ok) { toast((res.d && res.d.error) || '切换失败'); return; }
+      toast('已切换为「' + b.textContent + '」');
+      refresh();
+    });
+  });
+
+  // 「归属地查不到时」拦截 / 放行
+  $('geoUnknown').addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('button') : null;
+    if (!b || !b.dataset.unknown) return;
+    var want = b.dataset.unknown === '1';
+    if (want) {
+      if (!confirm('确定改为「查不到归属地就放行」吗？\n\n归属地未知本身就是风险信号：' +
+        '查询失败、来源不明的访问都会直接进站。仅在归属地服务临时故障、' +
+        '需要先保证正常用户能访问时才放宽。')) return;
+    }
+    api('/api/admin/geo', { method: 'PATCH', body: { failOpen: want } }).then(function(res){
+      if (!res.ok) { toast((res.d && res.d.error) || '切换失败'); return; }
+      toast(want ? '已改为：查不到归属地时放行' : '已改为：查不到归属地时拦截');
+      refresh();
+    });
+  });
+
+  $('geoSave').addEventListener('click', function(){
+    var body = {
+      provOn: $('geoProvOn').checked,
+      provinces: selectedVals($('geoProv')),
+      cityOn: $('geoCityOn').checked,
+      cities: selectedVals($('geoCity')),
+      allowIps: $('geoIps').value.split(/[,，\s]+/).map(function(s){ return s.trim(); }).filter(Boolean)
+    };
+    var btn = $('geoSave');
+    btn.disabled = true;
+    api('/api/admin/geo', { method: 'PATCH', body: body }).then(function(res){
+      if (!res.ok) { toast((res.d && res.d.error) || '保存失败'); return; }
+      toast('规则已保存，立即生效');
+      refresh();
+    }).finally(function(){ btn.disabled = false; });
+  });
+
+  // 省市联动：省变化 → 市重载
+  $('geoProv').addEventListener('change', function(){
+    var provs = selectedVals($('geoProv'));
+    fillSelect($('geoCity'), cityList(provs), []);
+    updateGeoRules();
+  });
+  $('geoCity').addEventListener('change', updateGeoRules);
+
+  $('geoLkBtn').addEventListener('click', function(){
+    var ip = $('geoLkIp').value.trim();
+    if (!ip) return;
+    $('geoLkRes').textContent = '查询中…';
+    api('/api/admin/geo/lookup?ip=' + encodeURIComponent(ip)).then(function(res){
+      if (!res.ok) { $('geoLkRes').textContent = (res.d && res.d.error) || '查询失败'; return; }
+      var d = res.d;
+      var verdict = d.wouldAllow === true
+        ? '<b style="color:#047857">会放行</b>'
+        : (d.wouldAllow === false
+          ? '<b style="color:#b91c1c">会被拦截</b>'
+          : '<b style="color:#b45309">判定不了，取决于「查不到时」的开关</b>');
+      $('geoLkRes').innerHTML = '<b>' + esc2(d.region) + '</b>' +
+        (d.isp ? ' · ' + esc2(d.isp) : '') + '（来源 ' + esc2(d.src || '未知') + '）→ ' + verdict;
+    });
+  });
+
+  $('geoLkIp').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') { e.preventDefault(); $('geoLkBtn').click(); }
+  });
+
+  $('geoLogClear').addEventListener('click', function(){
+    if (!confirm('确定清空全部访问日志吗？')) return;
+    api('/api/admin/access', { method: 'DELETE' }).then(function(){
+      toast('日志已清空');
+      geoState.logPage = 1;
+      loadLog();
+    });
+  });
+
+  $('geoRefresh').addEventListener('click', function(){
+    refresh().then(function(){ toast('已刷新'); });
+  });
+
+  // ---------- 分页控件 ----------
+  $('logPrev').addEventListener('click', function(){ loadLog(null, geoState.logPage - 1); });
+  $('logNext').addEventListener('click', function(){ loadLog(null, geoState.logPage + 1); });
+  $('logSize').addEventListener('change', function(){
+    geoState.logSize = Number(this.value);
+    geoState.logPage = 1;
+    loadLog();
+  });
+  $('loginLogPrev').addEventListener('click', function(){ loadLoginLog(sec.logPage - 1); });
+  $('loginLogNext').addEventListener('click', function(){ loadLoginLog(sec.logPage + 1); });
+  $('loginLogSize').addEventListener('change', function(){
+    sec.logSize = Number(this.value);
+    sec.logPage = 1;
+    loadLoginLog();
+  });
+  $('auditRefresh').addEventListener('click', function(){ loadAudit(); });
+  $('auditPrev').addEventListener('click', function(){ loadAudit(auditState.page - 1); });
+  $('auditNext').addEventListener('click', function(){ loadAudit(auditState.page + 1); });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.geo-tabs button[data-only]'), function(b){
+    b.addEventListener('click', function(){
+      Array.prototype.forEach.call(document.querySelectorAll('.geo-tabs button[data-only]'), function(x){
+        x.classList.remove('on');
+      });
+      b.classList.add('on');
+      geoState.logPage = 1;
+      loadLog(b.dataset.only);
+    });
+  });
+
+  $('createForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var body = {
+      username: $('cUser').value.trim(),
+      nickname: $('cNick').value.trim(),
+      password: $('cPass').value,
+      role: $('cRole').value
+    };
+    var btn = $('createSubmit');
+    btn.disabled = true; btn.textContent = '创建中…';
+    $('createErr').textContent = '';
+    api('/api/admin/users', { method: 'POST', body: body })
+      .then(function(res){
+        if (!res.ok) { $('createErr').textContent = (res.d && res.d.error) || '创建失败'; return; }
+        close('createOverlay');
+        toast('账号「' + (body.nickname || body.username) + '」创建成功');
+        refresh();
+      })
+      .catch(function(){ $('createErr').textContent = '网络异常'; })
+      .finally(function(){ btn.disabled = false; btn.textContent = '创建'; });
+  });
+
+  $('passForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var pwd = $('nPass').value;
+    if (pwd.length < 6) { $('passErr').textContent = '密码至少 6 位'; return; }
+    var btn = $('passSubmit');
+    btn.disabled = true; btn.textContent = '提交中…';
+    api('/api/admin/users/' + pendingId + '/password', { method: 'POST', body: { password: pwd } })
+      .then(function(res){
+        if (!res.ok) { $('passErr').textContent = (res.d && res.d.error) || '重置失败'; return; }
+        close('passOverlay');
+        toast('密码已重置，该用户需要重新登录');
+        loadUsers();
+      })
+      .catch(function(){ $('passErr').textContent = '网络异常'; })
+      .finally(function(){ btn.disabled = false; btn.textContent = '确认重置'; });
+  });
+
+  $('delSubmit').addEventListener('click', function(){
+    var btn = $('delSubmit');
+    btn.disabled = true; btn.textContent = '删除中…';
+    api('/api/admin/users/' + pendingId, { method: 'DELETE' })
+      .then(function(res){
+        if (!res.ok) { toast((res.d && res.d.error) || '删除失败'); return; }
+        close('delOverlay');
+        toast('账号已删除');
+        refresh();
+      })
+      .catch(function(){ toast('网络异常'); })
+      .finally(function(){ btn.disabled = false; btn.textContent = '确认删除'; });
+  });
+
+  $('backBtn').addEventListener('click', function(){ location.href = '/'; });
+  $('goHome').addEventListener('click', function(){ location.href = '/'; });
+
+  /* ---------- F8 群公告 ---------- */
+  function renderAnnouncement(d){
+    if (d && d.announcement) {
+      $('annTitleInput').value = d.announcement.title || '';
+      $('annBodyInput').value = d.announcement.body || '';
+    } else {
+      $('annTitleInput').value = '';
+      $('annBodyInput').value = '';
+    }
+  }
+  $('annLoadBtn').addEventListener('click', function(){
+    api('/api/announcement').then(function(res){
+      renderAnnouncement(res.d || {});
+      toast(res.d && res.d.announcement ? '已载入当前公告' : '当前没有公告');
+    });
+  });
+  $('annSaveBtn').addEventListener('click', function(){
+    var title = $('annTitleInput').value.trim();
+    var body = $('annBodyInput').value.trim();
+    if (!body) { toast('公告内容不能为空'); return; }
+    var btn = $('annSaveBtn');
+    btn.disabled = true;
+    api('/api/admin/announcement', { method: 'POST', body: { title: title, body: body } })
+      .then(function(res){
+        if (!res.ok) { toast((res.d && res.d.error) || '发布失败'); return; }
+        toast('公告已发布，所有在线成员已看到');
+      })
+      .finally(function(){ btn.disabled = false; });
+  });
+  $('annOffBtn').addEventListener('click', function(){
+    if (!confirm('确定关闭当前公告吗？')) return;
+    api('/api/admin/announcement', { method: 'POST', body: { title: '', body: '' } })
+      .then(function(res){
+        if (!res.ok) { toast((res.d && res.d.error) || '操作失败'); return; }
+        renderAnnouncement({});
+        toast('公告已关闭');
+      });
+  });
+
+  /* ---------- F9 敏感词 ---------- */
+  function renderSw(list){
+    var box = $('swList');
+    box.textContent = '';
+    $('swCount').textContent = list.length;
+    if (!list.length) {
+      var em = document.createElement('span');
+      em.className = 'geo-sub';
+      em.textContent = '暂无敏感词';
+      box.appendChild(em);
+      return;
+    }
+    list.forEach(function(w){
+      var chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = w;
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.textContent = '×';
+      del.title = '删除';
+      del.addEventListener('click', function(){
+        if (!confirm('确定删除敏感词「' + w + '」吗？')) return;
+        api('/api/admin/sensitive-words/' + encodeURIComponent(w), { method: 'DELETE' })
+          .then(function(res){
+            if (!res.ok) { toast((res.d && res.d.error) || '删除失败'); return; }
+            toast('已删除「' + w + '」');
+            loadSw();
+          });
+      });
+      chip.appendChild(del);
+      box.appendChild(chip);
+    });
+  }
+  function loadSw(){
+    api('/api/admin/sensitive-words').then(function(res){
+      if (res.ok) renderSw(res.d.words || []);
+    });
+  }
+  function addSw(){
+    var v = $('swInput').value.trim();
+    if (!v) return;
+    var btn = $('swAddBtn');
+    btn.disabled = true;
+    api('/api/admin/sensitive-words', { method: 'POST', body: { word: v } })
+      .then(function(res){
+        if (!res.ok) { toast((res.d && res.d.error) || '添加失败'); return; }
+        $('swInput').value = '';
+        toast('敏感词「' + v + '」已生效');
+        loadSw();
+      })
+      .finally(function(){ btn.disabled = false; });
+  }
+  $('swAddBtn').addEventListener('click', addSw);
+  $('swInput').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') { e.preventDefault(); addSw(); }
+  });
+
+  /* ---------- F10 清空聊天记录 ---------- */
+  $('clearBtn').addEventListener('click', function(){
+    var scope = $('clearScope').value;
+    var label = scope === 'all' ? '全部消息' : (scope === 'dm' ? '全部私聊' : '公共房间');
+    if (!confirm('确定清空「' + label + '」吗？\n此操作会移除所有成员界面的这些消息（软删除，审计留痕）。')) return;
+    if (!confirm('再次确认：该操作不可撤销，确定继续？')) return;
+    var btn = $('clearBtn');
+    btn.disabled = true;
+    api('/api/admin/clear-messages', { method: 'POST', body: { scope: scope } })
+      .then(function(res){
+        if (!res.ok) { toast((res.d && res.d.error) || '清空失败'); return; }
+        toast('已清空 ' + (res.d.cleared || 0) + ' 条消息');
+      })
+      .finally(function(){ btn.disabled = false; });
+  });
+
+  /* ---------- 启动 ---------- */
+  api('/api/me').then(function(res){
+    if (!res.d || !res.d.user) { showDenied(); return; }
+    me = res.d.user;
+    if (me.role !== 'admin') { showDenied(); return; }
+    $('whoami').textContent = '当前登录：' + me.nickname + '（@' + me.username + '）';
+    $('app').classList.remove('hidden');
+    refresh();
+    loadSecStats();
+    loadSw();
+    connectAdminSocket();
+    setInterval(loadStats, 15000);
+    setInterval(function(){ loadApprovals(); loadBans(); }, 30000);
+  }).catch(showDenied);
+})();
+</script>
+<script>
+/* ---------- 主题：浅色 / 深色 / 自动（跟随系统） ---------- */
+(function(){
+  var KEY = 'chat.theme';
+  var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  function pref(){ try { return localStorage.getItem(KEY) || 'auto'; } catch (e) { return 'auto'; } }
+  function resolve(p){ return (p === 'dark' || p === 'light') ? p : ((mq && mq.matches) ? 'dark' : 'light'); }
+  function applyUI(p){
+    var seg = document.getElementById('themeSeg');
+    if (!seg) return;
+    var b = seg.querySelectorAll('[data-theme-opt]');
+    for (var i = 0; i < b.length; i++) b[i].classList.toggle('on', b[i].getAttribute('data-theme-opt') === p);
+  }
+  function apply(p, anim){
+    var t = resolve(p), root = document.documentElement;
+    if (anim) { root.classList.add('theme-anim'); setTimeout(function(){ root.classList.remove('theme-anim'); }, 300); }
+    root.setAttribute('data-theme', t);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) { meta = document.createElement('meta'); meta.setAttribute('name', 'theme-color'); document.head.appendChild(meta); }
+    meta.setAttribute('content', t === 'dark' ? '#0f1218' : '#f4f5fa');
+    applyUI(p);
+  }
+  var seg = document.getElementById('themeSeg');
+  if (seg) seg.addEventListener('click', function(e){
+    var b = e.target && e.target.closest ? e.target.closest('[data-theme-opt]') : null;
+    if (!b) return;
+    var v = b.getAttribute('data-theme-opt');
+    try { localStorage.setItem(KEY, v); } catch (err) {}
+    apply(v, true);
+  });
+  if (mq && mq.addEventListener) mq.addEventListener('change', function(){ if (pref() === 'auto') apply('auto', true); });
+  apply(pref(), false);
+})();
+</script>
+</body>
+</html>

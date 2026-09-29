@@ -1,0 +1,24 @@
+# 运行时数据（含加密密钥，绝不能提交）
+data/
+*.db
+*.db-wal
+*.db-shm
+secret.key
+INITIAL_ADMIN.txt
+
+# 本地证书（自签或真实证书都不应入库）
+certs/
+
+# 依赖与构建
+node_modules/
+package-lock.json.bak
+
+# 环境变量（含后台路径等实例配置）
+.env
+.env.*
+
+# 日志与临时文件
+*.log
+*.pid
+*.tgz
+.DS_Store

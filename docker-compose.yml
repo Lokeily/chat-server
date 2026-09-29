@@ -1,0 +1,25 @@
+# 一行启动：docker compose up -d
+# 数据持久化在 ./data（含加密密钥 secret.key，务必定期备份整个目录）
+services:
+  chat:
+    build: .
+    container_name: chat
+    restart: unless-stopped
+    ports:
+      - "8080:8080"    # HTTP
+      - "8443:8443"    # HTTPS（certs/ 里有证书才启用）
+    volumes:
+      - ./data:/app/data
+      # 已有证书时放开下面两行（Let's Encrypt 等）：
+      # - ./certs:/app/certs:ro
+    environment:
+      # 管理后台路径：不填则每次启动随机生成（推荐，看启动日志获知）
+      # ADMIN_PATH: /my-secret-admin
+      # 首次启动的管理员密码：不填则随机生成（见 data/INITIAL_ADMIN.txt）
+      # ADMIN_PASSWORD: change-me
+      # UPLOAD_MAX_MB: 5
+      # GEO_GUARD: off          # 地域准入：off / log / on
+      # GEO_PROV_ON: "0"        # 省级开关
+      # GEO_PROVINCES: 云南,贵州
+      # GEO_CITY_ON: "0"        # 市级开关（与省级相互独立）
+      # GEO_CITIES: 昆明,南京

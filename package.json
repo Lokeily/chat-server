@@ -1,0 +1,30 @@
+{
+  "name": "chat-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "实时聊天室：登录鉴权 / 公共消息 / WebSocket 实时推送 / 文件加密存储 / 后台账号管理 / 一键安装",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "install:linux": "sudo bash install.sh"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "license": "MIT",
+  "author": "Lokeily",
+  "homepage": "https://github.com/Lokeily/chat-server",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Lokeily/chat-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Lokeily/chat-server/issues"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "express": "^4.22.3",
+    "multer": "^2.4.0",
+    "socket.io": "^4.7.5"
+  }
+}
